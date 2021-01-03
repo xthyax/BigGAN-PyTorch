@@ -10,7 +10,7 @@ from .utils import preprocess_input, load_and_crop, metadata_count
 import random
 
 class DataGenerator(Dataset):
-    def __init__(self, input_dir, classes=["Reject", "Pass"], input_size, crop=True, augmentation=None):
+    def __init__(self, input_dir, input_size, classes=["Reject", "Pass"],crop=True, augmentation=None):
         """
             Args:
                 input_dir (list): list of input image

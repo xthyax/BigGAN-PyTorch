@@ -375,41 +375,41 @@ def prepare_parser():
 
 	# Arguments for sample.py; not presently used in train.py
 	def add_sample_parser(parser):
-	parser.add_argument(
-		'--sample_npz', action='store_true', default=False,
-		help='Sample "sample_num_npz" images and save to npz? '
-			'(default: %(default)s)')
-	parser.add_argument(
-		'--sample_num_npz', type=int, default=50000,
-		help='Number of images to sample when sampling NPZs '
-			'(default: %(default)s)')
-	parser.add_argument(
-		'--sample_sheets', action='store_true', default=False,
-		help='Produce class-conditional sample sheets and stick them in '
-			'the samples root? (default: %(default)s)')
-	parser.add_argument(
-		'--sample_interps', action='store_true', default=False,
-		help='Produce interpolation sheets and stick them in '
-			'the samples root? (default: %(default)s)')         
-	parser.add_argument(
-		'--sample_sheet_folder_num', type=int, default=-1,
-		help='Number to use for the folder for these sample sheets '
-			'(default: %(default)s)')
-	parser.add_argument(
-		'--sample_random', action='store_true', default=False,
-		help='Produce a single random sheet? (default: %(default)s)')
-	parser.add_argument(
-		'--sample_trunc_curves', type=str, default='',
-		help='Get inception metrics with a range of variances?'
-			'To use this, specify a startpoint, step, and endpoint, e.g. '
-			'--sample_trunc_curves 0.2_0.1_1.0 for a startpoint of 0.2, '
-			'endpoint of 1.0, and stepsize of 1.0.  Note that this is '
-			'not exactly identical to using tf.truncated_normal, but should '
-			'have approximately the same effect. (default: %(default)s)')
-	parser.add_argument(
-		'--sample_inception_metrics', action='store_true', default=False,
-		help='Calculate Inception metrics with sample.py? (default: %(default)s)')  
-	return parser
+		parser.add_argument(
+			'--sample_npz', action='store_true', default=False,
+			help='Sample "sample_num_npz" images and save to npz? '
+				'(default: %(default)s)')
+		parser.add_argument(
+			'--sample_num_npz', type=int, default=50000,
+			help='Number of images to sample when sampling NPZs '
+				'(default: %(default)s)')
+		parser.add_argument(
+			'--sample_sheets', action='store_true', default=False,
+			help='Produce class-conditional sample sheets and stick them in '
+				'the samples root? (default: %(default)s)')
+		parser.add_argument(
+			'--sample_interps', action='store_true', default=False,
+			help='Produce interpolation sheets and stick them in '
+				'the samples root? (default: %(default)s)')         
+		parser.add_argument(
+			'--sample_sheet_folder_num', type=int, default=-1,
+			help='Number to use for the folder for these sample sheets '
+				'(default: %(default)s)')
+		parser.add_argument(
+			'--sample_random', action='store_true', default=False,
+			help='Produce a single random sheet? (default: %(default)s)')
+		parser.add_argument(
+			'--sample_trunc_curves', type=str, default='',
+			help='Get inception metrics with a range of variances?'
+				'To use this, specify a startpoint, step, and endpoint, e.g. '
+				'--sample_trunc_curves 0.2_0.1_1.0 for a startpoint of 0.2, '
+				'endpoint of 1.0, and stepsize of 1.0.  Note that this is '
+				'not exactly identical to using tf.truncated_normal, but should '
+				'have approximately the same effect. (default: %(default)s)')
+		parser.add_argument(
+			'--sample_inception_metrics', action='store_true', default=False,
+			help='Calculate Inception metrics with sample.py? (default: %(default)s)')  
+		return parser
 
 # Convenience dicts
 dset_dict = {'I32': dset.ImageFolder, 'I64': dset.ImageFolder, 
@@ -604,13 +604,13 @@ def get_data_loaders(dataset, data_root=None, augment=False, batch_size=64,
 def seed_rng(seed=1):
 	import random
 	torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed)
-    random.seed(seed)
-    torch.manual_seed(seed)
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
+	torch.cuda.manual_seed(seed)
+	torch.cuda.manual_seed_all(seed)
+	np.random.seed(seed)
+	random.seed(seed)
+	torch.manual_seed(seed)
+	torch.backends.cudnn.benchmark = False
+	torch.backends.cudnn.deterministic = True
 
 
 # Utility to peg all roots to a base root
@@ -619,7 +619,7 @@ def update_config_roots(config):
 	if config['base_root']:
 		print('Pegging all root folders to base root %s' % config['base_root'])
 		for key in ['data', 'weights', 'logs', 'samples']:
-		config['%s_root' % key] = '%s/%s' % (config['base_root'], key)
+			config['%s_root' % key] = '%s/%s' % (config['base_root'], key)
 	return config
 
 
@@ -627,8 +627,8 @@ def update_config_roots(config):
 def prepare_root(config):
 	for key in ['weights_root', 'logs_root', 'samples_root']:
 		if not os.path.exists(config[key]):
-		print('Making directory %s for %s...' % (config[key], key))
-		os.mkdir(config[key])
+			print('Making directory %s for %s...' % (config[key], key))
+			os.mkdir(config[key])
 
 
 # Simple wrapper that applies EMA to a model. COuld be better done in 1.0 using
@@ -646,21 +646,21 @@ class ema(object):
 		self.target_dict = self.target.state_dict()
 		print('Initializing EMA parameters to be source parameters...')
 		with torch.no_grad():
-		for key in self.source_dict:
-			self.target_dict[key].data.copy_(self.source_dict[key].data)
-			# target_dict[key].data = source_dict[key].data # Doesn't work!
+			for key in self.source_dict:
+				self.target_dict[key].data.copy_(self.source_dict[key].data)
+				# target_dict[key].data = source_dict[key].data # Doesn't work!
 
 	def update(self, itr=None):
 		# If an iteration counter is provided and itr is less than the start itr,
 		# peg the ema weights to the underlying weights.
 		if itr and itr < self.start_itr:
-		decay = 0.0
+			decay = 0.0
 		else:
-		decay = self.decay
+			decay = self.decay
 		with torch.no_grad():
-		for key in self.source_dict:
-			self.target_dict[key].data.copy_(self.target_dict[key].data * decay 
-										+ self.source_dict[key].data * (1 - decay))
+			for key in self.source_dict:
+				self.target_dict[key].data.copy_(self.target_dict[key].data * decay 
+											+ self.source_dict[key].data * (1 - decay))
 
 
 # Apply modified ortho reg to a model
@@ -670,12 +670,12 @@ def ortho(model, strength=1e-4, blacklist=[]):
 	with torch.no_grad():
 		for param in model.parameters():
 		# Only apply this to parameters with at least 2 axes, and not in the blacklist
-		if len(param.shape) < 2 or any([param is item for item in blacklist]):
-			continue
-		w = param.view(param.shape[0], -1)
-		grad = (2 * torch.mm(torch.mm(w, w.t()) 
-				* (1. - torch.eye(w.shape[0], device=w.device)), w))
-		param.grad.data += strength * grad.view(param.shape)
+			if len(param.shape) < 2 or any([param is item for item in blacklist]):
+				continue
+			w = param.view(param.shape[0], -1)
+			grad = (2 * torch.mm(torch.mm(w, w.t()) 
+					* (1. - torch.eye(w.shape[0], device=w.device)), w))
+			param.grad.data += strength * grad.view(param.shape)
 
 
 # Default ortho reg
@@ -684,13 +684,13 @@ def ortho(model, strength=1e-4, blacklist=[]):
 def default_ortho(model, strength=1e-4, blacklist=[]):
 	with torch.no_grad():
 		for param in model.parameters():
-		# Only apply this to parameters with at least 2 axes & not in blacklist
-		if len(param.shape) < 2 or param in blacklist:
-			continue
-		w = param.view(param.shape[0], -1)
-		grad = (2 * torch.mm(torch.mm(w, w.t()) 
-				- torch.eye(w.shape[0], device=w.device), w))
-		param.grad.data += strength * grad.view(param.shape)
+			# Only apply this to parameters with at least 2 axes & not in blacklist
+			if len(param.shape) < 2 or param in blacklist:
+				continue
+			w = param.view(param.shape[0], -1)
+			grad = (2 * torch.mm(torch.mm(w, w.t()) 
+					- torch.eye(w.shape[0], device=w.device), w))
+			param.grad.data += strength * grad.view(param.shape)
 
 
 # Convenience utility to switch off requires_grad
@@ -703,7 +703,7 @@ def toggle_grad(model, on_or_off):
 # Base string is the string to link "strings," while strings
 # is a list of strings or Nones.
 def join_strings(base_string, strings):
- 	 return base_string.join([item for item in strings if item])
+	return base_string.join([item for item in strings if item])
 
 
 # Save a model's weights, optimizer, and the state_dict
@@ -741,15 +741,15 @@ def load_weights(G, D, state_dict, weights_root, G_ema=None, strict=True, load_o
 		torch.load('%s/%s.pth' % (root, 'G')),
 		strict=strict)
 		if load_optim:
-		G.optim.load_state_dict(
-			torch.load('%s/%s.pth' % (root,'G_optim')))
+			G.optim.load_state_dict(
+				torch.load('%s/%s.pth' % (root,'G_optim')))
 	if D is not None:
 		D.load_state_dict(
 		torch.load('%s/%s.pth' % (root, 'D')),
 		strict=strict)
 		if load_optim:
-		D.optim.load_state_dict(
-			torch.load('%s/%s.pth' % (root, 'D_optim')))
+			D.optim.load_state_dict(
+				torch.load('%s/%s.pth' % (root, 'D_optim')))
 	# Load state dict
 	for item in state_dict:
 		state_dict[item] = torch.load('%s/%s.pth' % (root, 'state_dict'))[item]
@@ -766,20 +766,20 @@ class MetricsLogger(object):
 		self.fname = fname
 		self.reinitialize = reinitialize
 		if os.path.exists(self.fname):
-		if self.reinitialize:
-			print('{} exists, deleting...'.format(self.fname))
-			os.remove(self.fname)
+			if self.reinitialize:
+				print('{} exists, deleting...'.format(self.fname))
+				os.remove(self.fname)
 
 	def log(self, record=None, **kwargs):
 		"""
 		Assumption: no newlines in the input.
 		"""
 		if record is None:
-		record = {}
+			record = {}
 		record.update(kwargs)
 		record['_stamp'] = time.time()
 		with open(self.fname, 'a') as f:
-		f.write(json.dumps(record, ensure_ascii=True) + '\n')
+			f.write(json.dumps(record, ensure_ascii=True) + '\n')
 
 
 # Logstyle is either:
@@ -792,7 +792,7 @@ class MyLogger(object):
 	def __init__(self, fname, reinitialize=False, logstyle='%3.3f'):
 		self.root = fname
 		if not os.path.exists(self.root):
-		os.mkdir(self.root)
+			os.mkdir(self.root)
 		self.reinitialize = reinitialize
 		self.metrics = []
 		self.logstyle = logstyle # One of '%3.3f' or like '%3.3e'
@@ -800,31 +800,31 @@ class MyLogger(object):
   # Delete log if re-starting and log already exists
 	def reinit(self, item):
 		if os.path.exists('%s/%s.log' % (self.root, item)):
-		if self.reinitialize:
-			# Only print the removal mess
-			if 'sv' in item :
-			if not any('sv' in item for item in self.metrics):
-				print('Deleting singular value logs...')
-			else:
-			print('{} exists, deleting...'.format('%s_%s.log' % (self.root, item)))
-			os.remove('%s/%s.log' % (self.root, item))
+			if self.reinitialize:
+				# Only print the removal mess
+				if 'sv' in item :
+					if not any('sv' in item for item in self.metrics):
+						print('Deleting singular value logs...')
+				else:
+					print('{} exists, deleting...'.format('%s_%s.log' % (self.root, item)))
+				os.remove('%s/%s.log' % (self.root, item))
   
   # Log in plaintext; this is designed for being read in MATLAB(sorry not sorry)
 	def log(self, itr, **kwargs):
 		for arg in kwargs:
-		if arg not in self.metrics:
-			if self.reinitialize:
-			self.reinit(arg)
-			self.metrics += [arg]
-		if self.logstyle == 'pickle':
-			print('Pickle not currently supported...')
-			# with open('%s/%s.log' % (self.root, arg), 'a') as f:
-			# pickle.dump(kwargs[arg], f)
-		elif self.logstyle == 'mat':
-			print('.mat logstyle not currently supported...')
-		else:
-			with open('%s/%s.log' % (self.root, arg), 'a') as f:
-			f.write('%d: %s\n' % (itr, self.logstyle % kwargs[arg]))
+			if arg not in self.metrics:
+				if self.reinitialize:
+					self.reinit(arg)
+				self.metrics += [arg]
+			if self.logstyle == 'pickle':
+				print('Pickle not currently supported...')
+				# with open('%s/%s.log' % (self.root, arg), 'a') as f:
+				# pickle.dump(kwargs[arg], f)
+			elif self.logstyle == 'mat':
+				print('.mat logstyle not currently supported...')
+			else:
+				with open('%s/%s.log' % (self.root, arg), 'a') as f:
+					f.write('%d: %s\n' % (itr, self.logstyle % kwargs[arg]))
 
 
 # Write some metadata to the logs directory
@@ -857,21 +857,21 @@ def progress(items, desc='', total=None, min_delay=0.1, displaytype='s1k'):
 	for n, item in enumerate(items):
 		t_now = time.time()
 		if t_now - t_last > min_delay:
-		print("\r%s%d/%d (%6.2f%%)" % (
-				desc, n+1, total, n / float(total) * 100), end=" ")
+			print("\r%s%d/%d (%6.2f%%)" % (
+					desc, n+1, total, n / float(total) * 100), end=" ")
 		if n > 0:
 			
 			if displaytype == 's1k': # minutes/seconds for 1000 iters
-			next_1000 = n + (1000 - n%1000)
-			t_done = t_now - t_start
-			t_1k = t_done / n * next_1000
-			outlist = list(divmod(t_done, 60)) + list(divmod(t_1k - t_done, 60))
-			print("(TE/ET1k: %d:%02d / %d:%02d)" % tuple(outlist), end=" ")
+				next_1000 = n + (1000 - n%1000)
+				t_done = t_now - t_start
+				t_1k = t_done / n * next_1000
+				outlist = list(divmod(t_done, 60)) + list(divmod(t_1k - t_done, 60))
+				print("(TE/ET1k: %d:%02d / %d:%02d)" % tuple(outlist), end=" ")
 			else:# displaytype == 'eta':
-			t_done = t_now - t_start
-			t_total = t_done / n * total
-			outlist = list(divmod(t_done, 60)) + list(divmod(t_total - t_done, 60))
-			print("(TE/ETA: %d:%02d / %d:%02d)" % tuple(outlist), end=" ")
+				t_done = t_now - t_start
+				t_total = t_done / n * total
+				outlist = list(divmod(t_done, 60)) + list(divmod(t_total - t_done, 60))
+				print("(TE/ETA: %d:%02d / %d:%02d)" % tuple(outlist), end=" ")
 			
 		sys.stdout.flush()
 		t_last = t_now
@@ -887,9 +887,9 @@ def sample(G, z_, y_, config):
 		z_.sample_()
 		y_.sample_()
 		if config['parallel']:
-		G_z =  nn.parallel.data_parallel(G, (z_, G.shared(y_)))
+			G_z =  nn.parallel.data_parallel(G, (z_, G.shared(y_)))
 		else:
-		G_z = G(z_, G.shared(y_))
+			G_z = G(z_, G.shared(y_))
 		return G_z, y_
 
 
@@ -906,17 +906,17 @@ def sample_sheet(G, classes_per_sheet, num_classes, samples_per_class, parallel,
 		ims = []
 		y = torch.arange(i * classes_per_sheet, (i + 1) * classes_per_sheet, device='cuda')
 		for j in range(samples_per_class):
-		if (z_ is not None) and hasattr(z_, 'sample_') and classes_per_sheet <= z_.size(0):
-			z_.sample_()
+			if (z_ is not None) and hasattr(z_, 'sample_') and classes_per_sheet <= z_.size(0):
+				z_.sample_()
 		else:
 			z_ = torch.randn(classes_per_sheet, G.dim_z, device='cuda')        
 		with torch.no_grad():
 			if parallel:
-			o = nn.parallel.data_parallel(G, (z_[:classes_per_sheet], G.shared(y)))
+				o = nn.parallel.data_parallel(G, (z_[:classes_per_sheet], G.shared(y)))
 			else:
-			o = G(z_[:classes_per_sheet], G.shared(y))
+				o = G(z_[:classes_per_sheet], G.shared(y))
 
-		ims += [o.data.cpu()]
+			ims += [o.data.cpu()]
 		# This line should properly unroll the images
 		out_ims = torch.stack(ims, 1).view(-1, ims[0].shape[1], ims[0].shape[2], 
 										ims[0].shape[3]).data.float().cpu()
@@ -959,9 +959,9 @@ def interp_sheet(G, num_per_sheet, num_midpoints, num_classes, parallel,
 		zs = zs.half()
 	with torch.no_grad():
 		if parallel:
-		out_ims = nn.parallel.data_parallel(G, (zs, ys)).data.cpu()
+			out_ims = nn.parallel.data_parallel(G, (zs, ys)).data.cpu()
 		else:
-		out_ims = G(zs, ys).data.cpu()
+			out_ims = G(zs, ys).data.cpu()
 	interp_style = '' + ('Z' if not fix_z else '') + ('Y' if not fix_y else '')
 	image_filename = '%s/%s/%d/interp%s%d.jpg' % (samples_root, experiment_name,
 													folder_number, interp_style,
@@ -1043,13 +1043,13 @@ def name_from_config(config):
 
 # A simple function to produce a unique experiment name from the animal hashes.
 def hashname(name):
-  h = hash(name)
-  a = h % len(animal_hash.a)
-  h = h // len(animal_hash.a)
-  b = h % len(animal_hash.b)
-  h = h // len(animal_hash.c)
-  c = h % len(animal_hash.c)
-  return animal_hash.a[a] + animal_hash.b[b] + animal_hash.c[c]
+	h = hash(name)
+	a = h % len(animal_hash.a)
+	h = h // len(animal_hash.a)
+	b = h % len(animal_hash.b)
+	h = h // len(animal_hash.c)
+	c = h % len(animal_hash.c)
+	return animal_hash.a[a] + animal_hash.b[b] + animal_hash.c[c]
 
 
 # Get GPU memory, -i is the index
@@ -1082,16 +1082,16 @@ class Distribution(torch.Tensor):
 		self.dist_type = dist_type
 		self.dist_kwargs = kwargs
 		if self.dist_type == 'normal':
-		self.mean, self.var = kwargs['mean'], kwargs['var']
+			self.mean, self.var = kwargs['mean'], kwargs['var']
 		elif self.dist_type == 'categorical':
-		self.num_categories = kwargs['num_categories']
+			self.num_categories = kwargs['num_categories']
 
 	def sample_(self):
 		if self.dist_type == 'normal':
-		self.normal_(self.mean, self.var)
+			self.normal_(self.mean, self.var)
 		elif self.dist_type == 'categorical':
-		self.random_(0, self.num_categories)    
-		# return self.variable
+			self.random_(0, self.num_categories)    
+			# return self.variable
     
 	# Silly hack: overwrite the to() method to wrap the new object
 	# in a distribution as well
@@ -1121,8 +1121,8 @@ def prepare_z_y(G_batch_size, dim_z, nclasses, device='cuda',
 def initiate_standing_stats(net):
 	for module in net.modules():
 		if hasattr(module, 'accumulate_standing'):
-		module.reset_stats()
-		module.accumulate_standing = True
+			module.reset_stats()
+			module.accumulate_standing = True
 
 
 def accumulate_standing_stats(net, z, y, nclasses, num_accumulations=16):
@@ -1130,9 +1130,9 @@ def accumulate_standing_stats(net, z, y, nclasses, num_accumulations=16):
 	net.train()
 	for i in range(num_accumulations):
 		with torch.no_grad():
-		z.normal_()
-		y.random_(0, nclasses)
-		x = net(z, net.shared(y)) # No need to parallelize here unless using syncbn
+			z.normal_()
+			y.random_(0, nclasses)
+			x = net(z, net.shared(y)) # No need to parallelize here unless using syncbn
 	# Set to eval mode
 	net.eval() 
 
@@ -1156,10 +1156,10 @@ class Adam16(Optimizer):
 	def load_state_dict(self, state_dict):
 		super(Adam16, self).load_state_dict(state_dict)
 		for group in self.param_groups:
-		for p in group['params']:
-			self.state[p]['exp_avg'] = self.state[p]['exp_avg'].float()
-			self.state[p]['exp_avg_sq'] = self.state[p]['exp_avg_sq'].float()
-			self.state[p]['fp32_p'] = self.state[p]['fp32_p'].float()
+			for p in group['params']:
+				self.state[p]['exp_avg'] = self.state[p]['exp_avg'].float()
+				self.state[p]['exp_avg_sq'] = self.state[p]['exp_avg_sq'].float()
+				self.state[p]['fp32_p'] = self.state[p]['fp32_p'].float()
 
 	def step(self, closure=None):
 		"""Performs a single optimization step.
@@ -1169,46 +1169,46 @@ class Adam16(Optimizer):
 		"""
 		loss = None
 		if closure is not None:
-		loss = closure()
+			loss = closure()
 
 		for group in self.param_groups:
-		for p in group['params']:
-			if p.grad is None:
-			continue
+			for p in group['params']:
+				if p.grad is None:
+					continue
+				
+				grad = p.grad.data.float()
+				state = self.state[p]
+
+				# State initialization
+				if len(state) == 0:
+					state['step'] = 0
+					# Exponential moving average of gradient values
+					state['exp_avg'] = grad.new().resize_as_(grad).zero_()
+					# Exponential moving average of squared gradient values
+					state['exp_avg_sq'] = grad.new().resize_as_(grad).zero_()
+					# Fp32 copy of the weights
+					state['fp32_p'] = p.data.float()
+
+				exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
+				beta1, beta2 = group['betas']
+
+				state['step'] += 1
+
+				if group['weight_decay'] != 0:
+					grad = grad.add(group['weight_decay'], state['fp32_p'])
+
+				# Decay the first and second moment running average coefficient
+				exp_avg.mul_(beta1).add_(1 - beta1, grad)
+				exp_avg_sq.mul_(beta2).addcmul_(1 - beta2, grad, grad)
+
+				denom = exp_avg_sq.sqrt().add_(group['eps'])
+
+				bias_correction1 = 1 - beta1 ** state['step']
+				bias_correction2 = 1 - beta2 ** state['step']
+				step_size = group['lr'] * math.sqrt(bias_correction2) / bias_correction1
 			
-			grad = p.grad.data.float()
-			state = self.state[p]
-
-			# State initialization
-			if len(state) == 0:
-			state['step'] = 0
-			# Exponential moving average of gradient values
-			state['exp_avg'] = grad.new().resize_as_(grad).zero_()
-			# Exponential moving average of squared gradient values
-			state['exp_avg_sq'] = grad.new().resize_as_(grad).zero_()
-			# Fp32 copy of the weights
-			state['fp32_p'] = p.data.float()
-
-			exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
-			beta1, beta2 = group['betas']
-
-			state['step'] += 1
-
-			if group['weight_decay'] != 0:
-			grad = grad.add(group['weight_decay'], state['fp32_p'])
-
-			# Decay the first and second moment running average coefficient
-			exp_avg.mul_(beta1).add_(1 - beta1, grad)
-			exp_avg_sq.mul_(beta2).addcmul_(1 - beta2, grad, grad)
-
-			denom = exp_avg_sq.sqrt().add_(group['eps'])
-
-			bias_correction1 = 1 - beta1 ** state['step']
-			bias_correction2 = 1 - beta2 ** state['step']
-			step_size = group['lr'] * math.sqrt(bias_correction2) / bias_correction1
-		
-			state['fp32_p'].addcdiv_(-step_size, exp_avg, denom)
-			p.data = state['fp32_p'].half()
+				state['fp32_p'].addcdiv_(-step_size, exp_avg, denom)
+				p.data = state['fp32_p'].half()
 
 		return loss
 
