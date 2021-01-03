@@ -10,7 +10,7 @@ from .utils import preprocess_input, load_and_crop, metadata_count
 import random
 
 class DataGenerator(Dataset):
-    def __init__(self, input_dir, classes, input_size, crop=True, augmentation=None):
+    def __init__(self, input_dir, classes=["Reject", "Pass"], input_size, crop=True, augmentation=None):
         """
             Args:
                 input_dir (list): list of input image
@@ -59,11 +59,8 @@ class DataGenerator(Dataset):
                     with open(json_path, encoding='utf-8') as json_file:
                         json_data = json.load(json_file)
                         # print("[DEBUG] Json opened")
-                    if self.binary_option:
-                        id_image = 'Reject' if json_data['classId'][0] in self.failClasses else 'Pass'
-                        # print(f'[DEBUG] {id_image}')
-                    else:
-                        id_image = json_data['classId'][0]
+
+                    id_image = json_data['classId'][0]
                     self.gt_list.append(id_image)
                     img_path_labels.append( (img_path, self.classes.index(id_image)) )
                 except:

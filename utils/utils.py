@@ -23,8 +23,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
-
+# from torch.utils.data import DataLoader
+from .custom_dataloader import FastDataLoader
+from .data_generator import DataGenerator
 # import datasets as dset
 import skimage
 from prettytable import PrettyTable
@@ -37,22 +38,25 @@ def prepare_parser():
 	
 	### Dataset/Dataloader stuff ###
 	parser.add_argument(
-		'--dataset', type=str, default='I128_hdf5',
+		'--dataset', type=str, default='GAN_Test',
 		help='Which Dataset to train on, out of I128, I256, C10, C100;'
 			'Append "_hdf5" to use the hdf5 version for ISLVRC '
 			'(default: %(default)s)')
 	parser.add_argument(
-		'--augment', action='store_true', default=False,
+		'--h5_path',type=str,
+		help='The path to save some stupid h5 file (default: %(default)s)')
+	parser.add_argument(
+		'--augment', action='store_true', default=False, required= False,
 		help='Augment with random crops and flips (default: %(default)s)')
 	parser.add_argument(
-		'--num_workers', type=int, default=8,
+		'--num_workers', type=int, default=2, required= False,
 		help='Number of dataloader workers; consider using less for HDF5 '
 			'(default: %(default)s)')
 	parser.add_argument(
-		'--no_pin_memory', action='store_false', dest='pin_memory', default=True,
+		'--no_pin_memory', action='store_false', dest='pin_memory', default=False, required=False,
 		help='Pin data into memory through dataloader? (default: %(default)s)') 
 	parser.add_argument(
-		'--shuffle', action='store_true', default=False,
+		'--shuffle', action='store_true', default=True, required=False , 
 		help='Shuffle the data (strongly recommended)? (default: %(default)s)')
 	parser.add_argument(
 		'--load_in_mem', action='store_true', default=False,
@@ -106,7 +110,7 @@ def prepare_parser():
 		'--hier', action='store_true', default=False,
 		help='Use hierarchical z in G? (default: %(default)s)')
 	parser.add_argument(
-		'--cross_replica', action='store_true', default=False,
+		'--cross_replica', action='store_true', default=True,
 		help='Cross_replica batchnorm in G?(default: %(default)s)')
 	parser.add_argument(
 		'--mybn', action='store_true', default=False,
@@ -132,7 +136,7 @@ def prepare_parser():
 			
 	### Model init stuff ###
 	parser.add_argument(
-		'--seed', type=int, default=0,
+		'--seed', type=int, default=1,
 		help='Random seed to use; affects both initialization and '
 			' dataloading. (default: %(default)s)')
 	parser.add_argument(
@@ -168,30 +172,33 @@ def prepare_parser():
 		
 	### Batch size, parallel, and precision stuff ###
 	parser.add_argument(
-		'--batch_size', type=int, default=64,
+		'--gpu', type=int, default=2,
+		help='Default number of gpus (default: %(default)s)')
+	parser.add_argument(
+		'--batch_size', type=int, default=32, required=False,
 		help='Default overall batchsize (default: %(default)s)')
 	parser.add_argument(
 		'--G_batch_size', type=int, default=0,
 		help='Batch size to use for G; if 0, same as D (default: %(default)s)')
 	parser.add_argument(
-		'--num_G_accumulations', type=int, default=1,
+		'--num_G_accumulations', type=int, default=8,
 		help='Number of passes to accumulate G''s gradients over '
 			'(default: %(default)s)')  
 	parser.add_argument(
 		'--num_D_steps', type=int, default=2,
 		help='Number of D steps per G step (default: %(default)s)')
 	parser.add_argument(
-		'--num_D_accumulations', type=int, default=1,
+		'--num_D_accumulations', type=int, default=8,
 		help='Number of passes to accumulate D''s gradients over '
 			'(default: %(default)s)')
 	parser.add_argument(
 		'--split_D', action='store_true', default=False,
 		help='Run D twice rather than concatenating inputs? (default: %(default)s)')
 	parser.add_argument(
-		'--num_epochs', type=int, default=100,
+		'--num_epochs', type=int, default=500,
 		help='Number of epochs to train for (default: %(default)s)')
 	parser.add_argument(
-		'--parallel', action='store_true', default=False,
+		'--parallel', action='store_true', default=True,
 		help='Train with multiple GPUs (default: %(default)s)')
 	parser.add_argument(
 		'--G_fp16', action='store_true', default=False,
@@ -217,7 +224,7 @@ def prepare_parser():
 		
 	### Bookkeping stuff ###  
 	parser.add_argument(
-		'--G_eval_mode', action='store_true', default=False,
+		'--G_eval_mode', action='store_true', default=True,
 		help='Run G in eval mode (running/standing stats?) at sample/test time? '
 			'(default: %(default)s)')
 	parser.add_argument(
@@ -240,7 +247,7 @@ def prepare_parser():
 		'--test_every', type=int, default=5000,
 		help='Test every X iterations (default: %(default)s)')
 	parser.add_argument(
-		'--num_inception_images', type=int, default=50000,
+		'--num_inception_images', type=int, default=5000,
 		help='Number of samples to compute inception metrics with '
 			'(default: %(default)s)')
 	parser.add_argument(
@@ -264,7 +271,7 @@ def prepare_parser():
 		'--samples_root', type=str, default='samples',
 		help='Default location to store samples (default: %(default)s)')  
 	parser.add_argument(
-		'--pbar', type=str, default='mine',
+		'--pbar', type=str, default='tqdm',
 		help='Type of progressbar to use; one of "mine" or "tqdm" '
 			'(default: %(default)s)')
 	parser.add_argument(
@@ -340,7 +347,7 @@ def prepare_parser():
 		help='Suffix for which weights to load (e.g. best0, copy0) '
 			'(default: %(default)s)')
 	parser.add_argument(
-		'--resume', action='store_true', default=False,
+		'--resume', action='store_true', default=True,
 		help='Resume training? (default: %(default)s)')
 	
 	### Log stuff ###
@@ -409,28 +416,28 @@ dset_dict = {'I32': dset.ImageFolder, 'I64': dset.ImageFolder,
              'I128': dset.ImageFolder, 'I256': dset.ImageFolder,
              'I32_hdf5': dset.ILSVRC_HDF5, 'I64_hdf5': dset.ILSVRC_HDF5, 
              'I128_hdf5': dset.ILSVRC_HDF5, 'I256_hdf5': dset.ILSVRC_HDF5,
-             'C10': dset.CIFAR10, 'C100': dset.CIFAR100}
+             'C10': dset.CIFAR10, 'C100': dset.CIFAR100, "GAN_Test":"Some stuff"}
 imsize_dict = {'I32': 32, 'I32_hdf5': 32,
                'I64': 64, 'I64_hdf5': 64,
                'I128': 128, 'I128_hdf5': 128,
                'I256': 256, 'I256_hdf5': 256,
-               'C10': 32, 'C100': 32}
+               'C10': 32, 'C100': 32, "GAN_Test":256}
 root_dict = {'I32': 'ImageNet', 'I32_hdf5': 'ILSVRC32.hdf5',
              'I64': 'ImageNet', 'I64_hdf5': 'ILSVRC64.hdf5',
              'I128': 'ImageNet', 'I128_hdf5': 'ILSVRC128.hdf5',
              'I256': 'ImageNet', 'I256_hdf5': 'ILSVRC256.hdf5',
-             'C10': 'cifar', 'C100': 'cifar'}
+             'C10': 'cifar', 'C100': 'cifar', "GAN_Test": "Dataset"}
 nclass_dict = {'I32': 1000, 'I32_hdf5': 1000,
                'I64': 1000, 'I64_hdf5': 1000,
                'I128': 1000, 'I128_hdf5': 1000,
                'I256': 1000, 'I256_hdf5': 1000,
-               'C10': 10, 'C100': 100}
+               'C10': 10, 'C100': 100, "GAN_Test":2}
 # Number of classes to put per sample sheet               
 classes_per_sheet_dict = {'I32': 50, 'I32_hdf5': 50,
                           'I64': 50, 'I64_hdf5': 50,
                           'I128': 20, 'I128_hdf5': 20,
                           'I256': 20, 'I256_hdf5': 20,
-                          'C10': 10, 'C100': 100}
+                          'C10': 10, 'C100': 100, "GAN_Test":50}
 activation_dict = {'inplace_relu': nn.ReLU(inplace=True),
                    'relu': nn.ReLU(inplace=False),
                    'ir': nn.ReLU(inplace=True),}
@@ -532,43 +539,43 @@ def get_data_loaders(dataset, data_root=None, augment=False, batch_size=64,
                      **kwargs):
 
 	# Append /FILENAME.hdf5 to root if using hdf5
-	data_root += '/%s' % root_dict[dataset]
+	# data_root += '/%s' % root_dict[dataset]
 	print('Using dataset root location %s' % data_root)
 
-	which_dataset = dset_dict[dataset]
-	norm_mean = [0.5,0.5,0.5]
-	norm_std = [0.5,0.5,0.5]
+	# which_dataset = dset_dict[dataset]
+	# norm_mean = [0.5,0.5,0.5]
+	# norm_std = [0.5,0.5,0.5]
 	image_size = imsize_dict[dataset]
-	# For image folder datasets, name of the file where we store the precomputed
-	# image locations to avoid having to walk the dirs every time we load.
-	dataset_kwargs = {'index_filename': '%s_imgs.npz' % dataset}
+	# # For image folder datasets, name of the file where we store the precomputed
+	# # image locations to avoid having to walk the dirs every time we load.
+	# dataset_kwargs = {'index_filename': '%s_imgs.npz' % dataset}
 	
-	# HDF5 datasets have their own inbuilt transform, no need to train_transform  
-	if 'hdf5' in dataset:
-		train_transform = None
-	else:
-		if augment:
-		print('Data will be augmented...')
-		if dataset in ['C10', 'C100']:
-			train_transform = [transforms.RandomCrop(32, padding=4),
-							transforms.RandomHorizontalFlip()]
-		else:
-			train_transform = [RandomCropLongEdge(),
-							transforms.Resize(image_size),
-							transforms.RandomHorizontalFlip()]
-		else:
-		print('Data will not be augmented...')
-		if dataset in ['C10', 'C100']:
-			train_transform = []
-		else:
-			train_transform = [CenterCropLongEdge(), transforms.Resize(image_size)]
-		# train_transform = [transforms.Resize(image_size), transforms.CenterCrop]
-		train_transform = transforms.Compose(train_transform + [
-						transforms.ToTensor(),
-						transforms.Normalize(norm_mean, norm_std)])
-	train_set = which_dataset(root=data_root, transform=train_transform,
-								load_in_mem=load_in_mem, **dataset_kwargs)
-
+	# # HDF5 datasets have their own inbuilt transform, no need to train_transform  
+	# if 'hdf5' in dataset:
+	# 	train_transform = None
+	# else:
+	# 	if augment:
+	# 	print('Data will be augmented...')
+	# 	if dataset in ['C10', 'C100']:
+	# 		train_transform = [transforms.RandomCrop(32, padding=4),
+	# 						transforms.RandomHorizontalFlip()]
+	# 	else:
+	# 		train_transform = [RandomCropLongEdge(),
+	# 						transforms.Resize(image_size),
+	# 						transforms.RandomHorizontalFlip()]
+	# 	else:
+	# 	print('Data will not be augmented...')
+	# 	if dataset in ['C10', 'C100']:
+	# 		train_transform = []
+	# 	else:
+	# 		train_transform = [CenterCropLongEdge(), transforms.Resize(image_size)]
+	# 	# train_transform = [transforms.Resize(image_size), transforms.CenterCrop]
+	# 	train_transform = transforms.Compose(train_transform + [
+	# 					transforms.ToTensor(),
+	# 					transforms.Normalize(norm_mean, norm_std)])
+	# train_set = which_dataset(root=data_root, transform=train_transform,
+	# 							load_in_mem=load_in_mem, **dataset_kwargs)
+	train_set = DataGenerator(data_root, input_size =image_size)
 	# Prepare loader; the loaders list is for forward compatibility with
 	# using validation / test splits.
 	loaders = []   
@@ -576,19 +583,26 @@ def get_data_loaders(dataset, data_root=None, augment=False, batch_size=64,
 		print('Using multiepoch sampler from start_itr %d...' % start_itr)
 		loader_kwargs = {'num_workers': num_workers, 'pin_memory': pin_memory}
 		sampler = MultiEpochSampler(train_set, num_epochs, start_itr, batch_size)
-		train_loader = DataLoader(train_set, batch_size=batch_size,
+		seed_rng()
+		train_loader = FastDataLoader(train_set, batch_size=batch_size,
 								sampler=sampler, **loader_kwargs)
+		# train_loader = DataLoader(train_set, batch_size=batch_size,
+		# 						sampler=sampler, **loader_kwargs)
 	else:
 		loader_kwargs = {'num_workers': num_workers, 'pin_memory': pin_memory,
 						'drop_last': drop_last} # Default, drop last incomplete batch
-		train_loader = DataLoader(train_set, batch_size=batch_size,
+		seed_rng()
+		train_loader =  FastDataLoader(train_set, batch_size=batch_size,
 								shuffle=shuffle, **loader_kwargs)
+		# train_loader = DataLoader(train_set, batch_size=batch_size,
+		# 						shuffle=shuffle, **loader_kwargs)
 	loaders.append(train_loader)
 	return loaders
 
 
 # Utility file to seed rngs
-def seed_rng(seed):
+def seed_rng(seed=1):
+	import random
 	torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -602,19 +616,19 @@ def seed_rng(seed):
 # Utility to peg all roots to a base root
 # If a base root folder is provided, peg all other root folders to it.
 def update_config_roots(config):
-  if config['base_root']:
-    print('Pegging all root folders to base root %s' % config['base_root'])
-    for key in ['data', 'weights', 'logs', 'samples']:
-      config['%s_root' % key] = '%s/%s' % (config['base_root'], key)
-  return config
+	if config['base_root']:
+		print('Pegging all root folders to base root %s' % config['base_root'])
+		for key in ['data', 'weights', 'logs', 'samples']:
+		config['%s_root' % key] = '%s/%s' % (config['base_root'], key)
+	return config
 
 
 # Utility to prepare root folders if they don't exist; parent folder must exist
 def prepare_root(config):
-  for key in ['weights_root', 'logs_root', 'samples_root']:
-    if not os.path.exists(config[key]):
-      print('Making directory %s for %s...' % (config[key], key))
-      os.mkdir(config[key])
+	for key in ['weights_root', 'logs_root', 'samples_root']:
+		if not os.path.exists(config[key]):
+		print('Making directory %s for %s...' % (config[key], key))
+		os.mkdir(config[key])
 
 
 # Simple wrapper that applies EMA to a model. COuld be better done in 1.0 using
@@ -693,9 +707,9 @@ def join_strings(base_string, strings):
 
 
 # Save a model's weights, optimizer, and the state_dict
-def save_weights(G, D, state_dict, weights_root, experiment_name, 
+def save_weights(G, D, state_dict, weights_root, 
                  name_suffix=None, G_ema=None):
-	root = '/'.join([weights_root, experiment_name])
+	root = weights_root
 	if not os.path.exists(root):
 		os.mkdir(root)
 	if name_suffix:
@@ -718,33 +732,30 @@ def save_weights(G, D, state_dict, weights_root, experiment_name,
 
 
 # Load a model's weights, optimizer, and the state_dict
-def load_weights(G, D, state_dict, weights_root, experiment_name, 
-                 name_suffix=None, G_ema=None, strict=True, load_optim=True):
-	root = '/'.join([weights_root, experiment_name])
-	if name_suffix:
-		print('Loading %s weights from %s...' % (name_suffix, root))
-	else:
-		print('Loading weights from %s...' % root)
+def load_weights(G, D, state_dict, weights_root, G_ema=None, strict=True, load_optim=True):
+	root = weights_root
+
+	print('Loading weights from %s...' % root)
 	if G is not None:
 		G.load_state_dict(
-		torch.load('%s/%s.pth' % (root, join_strings('_', ['G', name_suffix]))),
+		torch.load('%s/%s.pth' % (root, 'G')),
 		strict=strict)
 		if load_optim:
 		G.optim.load_state_dict(
-			torch.load('%s/%s.pth' % (root, join_strings('_', ['G_optim', name_suffix]))))
+			torch.load('%s/%s.pth' % (root,'G_optim')))
 	if D is not None:
 		D.load_state_dict(
-		torch.load('%s/%s.pth' % (root, join_strings('_', ['D', name_suffix]))),
+		torch.load('%s/%s.pth' % (root, 'D')),
 		strict=strict)
 		if load_optim:
 		D.optim.load_state_dict(
-			torch.load('%s/%s.pth' % (root, join_strings('_', ['D_optim', name_suffix]))))
+			torch.load('%s/%s.pth' % (root, 'D_optim')))
 	# Load state dict
 	for item in state_dict:
-		state_dict[item] = torch.load('%s/%s.pth' % (root, join_strings('_', ['state_dict', name_suffix])))[item]
+		state_dict[item] = torch.load('%s/%s.pth' % (root, 'state_dict'))[item]
 	if G_ema is not None:
 		G_ema.load_state_dict(
-		torch.load('%s/%s.pth' % (root, join_strings('_', ['G_ema', name_suffix]))),
+		torch.load('%s/%s.pth' % (root, 'G_ema')),
 		strict=strict)
 
 

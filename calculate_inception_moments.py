@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import utils.utils
+from utils import utils
 import inception_utils
 from tqdm import tqdm, trange
 from argparse import ArgumentParser
@@ -20,14 +20,14 @@ def prepare_parser():
 	usage = 'Calculate and store inception metrics.'
 	parser = ArgumentParser(description=usage)
 	parser.add_argument(
-		'--dataset', type=str, default='I128_hdf5',
+		'--dataset', type=str, default='GAN_Test',
 		help='Which Dataset to train on, out of I128, I256, C10, C100...'
 				 'Append _hdf5 to use the hdf5 version of the dataset. (default: %(default)s)')
 	parser.add_argument(
 		'--data_root', type=str, default='data',
 		help='Default location where data is stored (default: %(default)s)') 
 	parser.add_argument(
-		'--batch_size', type=int, default=64,
+		'--batch_size', type=int, default=32,
 		help='Default overall batchsize (default: %(default)s)')
 	parser.add_argument(
 		'--parallel', action='store_true', default=False,
@@ -83,6 +83,7 @@ def main():
 	# parse command line    
 	parser = prepare_parser()
 	config = vars(parser.parse_args())
+	utils.set_GPU(1)
 	print(config)
 	run(config)
 

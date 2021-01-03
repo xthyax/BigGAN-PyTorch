@@ -8,6 +8,9 @@
 """
 
 import os
+os.environ["MKL_NUM_THREADS"] = "3" # "6"
+os.environ["OMP_NUM_THREADS"] = "2" # "4"
+os.environ["NUMEXPR_NUM_THREADS"] = "3" # "6"
 import functools
 import math
 import numpy as np
@@ -28,6 +31,8 @@ from utils import utils
 import losses
 import train_fns
 from sync_batchnorm import patch_replication_callback
+from tensorboardX import SummaryWriter
+from datetime import datetime
 
 # The main training file. Config is a dictionary specifying the configuration
 # of this training run.
@@ -38,6 +43,8 @@ def run(config):
 	# configuration into the config-dict (e.g. inferring the number of classes
 	# and size of the images from the dataset, passing in a pytorch object
 	# for the activation specified as a string)
+	
+	writer = SummaryWriter(log_dir=config["logs_root"])
 	config['resolution'] = utils.imsize_dict[config['dataset']]
 	config['n_classes'] = utils.nclass_dict[config['dataset']]
 	config['G_activation'] = utils.activation_dict[config['G_nl']]
@@ -49,14 +56,14 @@ def run(config):
 	config = utils.update_config_roots(config)
 	device = 'cuda'
 	
-	# Seed RNG
-	utils.seed_rng(config['seed'])
+	# Set up number of GPU
+	utils.set_GPU(config["gpu"])
 
 	# Prepare root folders if necessary
 	utils.prepare_root(config)
 
 	# Setup cudnn.benchmark for free speed
-	torch.backends.cudnn.benchmark = True
+	# torch.backends.cudnn.benchmark = True
 
 	# Import the model--this line allows us to dynamically select different files.
 	model = __import__(config['model'])
@@ -100,15 +107,14 @@ def run(config):
 	if config['resume']:
 		print('Loading weights...')
 		utils.load_weights(G, D, state_dict,
-						config['weights_root'], experiment_name, 
-						config['load_weights'] if config['load_weights'] else None,
+						config['weights_root'],
 						G_ema if config['ema'] else None)
 
 	# If parallel, parallelize the GD module
 	if config['parallel']:
 		GD = nn.DataParallel(GD)
 		if config['cross_replica']:
-		patch_replication_callback(GD)
+			patch_replication_callback(GD)
 
 	# Prepare loggers for stats; metrics holds test metrics,
 	# lmetrics holds any desired training metrics.
@@ -162,66 +168,96 @@ def run(config):
 
 	print('Beginning training at epoch %d...' % state_dict['epoch'])
 	# Train for specified number of epochs, although we mostly track G iterations.
+
+	start_time = datetime.now()
 	for epoch in range(state_dict['epoch'], config['num_epochs']):    
 		# Which progressbar to use? TQDM or my own?
 		if config['pbar'] == 'mine':
-		pbar = utils.progress(loaders[0],displaytype='s1k' if config['use_multiepoch_sampler'] else 'eta')
+			pbar = utils.progress(loaders[0],displaytype='s1k' if config['use_multiepoch_sampler'] else 'eta')
 		else:
-		pbar = tqdm(loaders[0])
+			pbar = tqdm(loaders[0])
+		# Seed RNG
+
+		utils.seed_rng(epoch)
 		for i, (x, y) in enumerate(pbar):
-		# Increment the iteration counter
-		state_dict['itr'] += 1
-		# Make sure G and D are in training mode, just in case they got set to eval
-		# For D, which typically doesn't have BN, this shouldn't matter much.
-		G.train()
-		D.train()
-		if config['ema']:
-			G_ema.train()
-		if config['D_fp16']:
-			x, y = x.to(device).half(), y.to(device)
-		else:
-			x, y = x.to(device), y.to(device)
-		metrics = train(x, y)
-		train_log.log(itr=int(state_dict['itr']), **metrics)
-		
-		# Every sv_log_interval, log singular values
-		if (config['sv_log_interval'] > 0) and (not (state_dict['itr'] % config['sv_log_interval'])):
-			train_log.log(itr=int(state_dict['itr']), 
-						**{**utils.get_SVs(G, 'G'), **utils.get_SVs(D, 'D')})
-
-		# If using my progbar, print metrics.
-		if config['pbar'] == 'mine':
-			print(', '.join(['itr: %d' % state_dict['itr']] 
-							+ ['%s : %+4.3f' % (key, metrics[key])
-							for key in metrics]), end=' ')
-
-		# Save weights and copies as configured at specified interval
-		if not (state_dict['itr'] % config['save_every']):
-			if config['G_eval_mode']:
-			print('Switchin G to eval mode...')
-			G.eval()
+			# Increment the iteration counter
+			state_dict['itr'] += 1
+			# Make sure G and D are in training mode, just in case they got set to eval
+			# For D, which typically doesn't have BN, this shouldn't matter much.
+			G.train()
+			D.train()
 			if config['ema']:
-				G_ema.eval()
-			train_fns.save_and_sample(G, D, G_ema, z_, y_, fixed_z, fixed_y, 
-									state_dict, config, experiment_name)
+				G_ema.train()
+			if config['D_fp16']:
+				x, y = x.to(device).half(), y.to(device)
+			else:
+				x, y = x.to(device), y.to(device)
+			metrics = train(x, y)
+			train_log.log(itr=int(state_dict['itr']), **metrics)
+			
+			# Every sv_log_interval, log singular values
+			if (config['sv_log_interval'] > 0) and (not (state_dict['itr'] % config['sv_log_interval'])):
+				train_log.log(itr=int(state_dict['itr']), 
+							**{**utils.get_SVs(G, 'G'), **utils.get_SVs(D, 'D')})
 
+			# If using my progbar, print metrics.
+			if config['pbar'] == 'mine':
+				print(', '.join(['itr: %d' % state_dict['itr']] 
+								+ ['%s : %+4.3f' % (key, metrics[key])
+								for key in metrics]), end=' ')
+
+			# Save weights and copies as configured at specified interval
+			# if not (state_dict['itr'] % config['save_every']):
+			
+
+			# Increment epoch counter at end of epoch
+			state_dict['epoch'] += 1
+			# Set description update for progress bar
+			pbar.set_description(\
+				'Epoch: {}/{}. {}: {:.5}. {}: {:.5}. {}: {:.5}'.format(\
+				state_dict['epoch'], config['num_epochs'], \
+				"G_loss", metrics["G_loss"], \
+				"D_loss_real", metrics["D_loss_real"],\
+				"D_loss_fake" ,	metrics["D_loss_fake"]))
+
+			progress_bar.update()
+
+		writer.add_scalars("Loss",{"G_loss": metrics["G_loss"],\
+			"D_loss_real": metrics["D_loss_real"],\
+			"D_loss_fake": metrics["D_loss_fake"]}, state_dict['epoch'])
+
+			# Save after every epoch
+			# if config['G_eval_mode']:
+			# 	print('Switchin G to eval mode...')
+			# 	G.eval()
+			# 	if config['ema']:
+			# 		G_ema.eval()
+			# 	train_fns.save_and_sample(G, D, G_ema, z_, y_, fixed_z, fixed_y, 
+			# 							state_dict, config, experiment_name)
+		
 		# Test every specified interval
-		if not (state_dict['itr'] % config['test_every']):
-			if config['G_eval_mode']:
+		# if not (state_dict['itr'] % config['test_every']):
+		if config['G_eval_mode']:
 			print('Switchin G to eval mode...')
 			G.eval()
 			train_fns.test(G, D, G_ema, z_, y_, state_dict, config, sample,
-						get_inception_metrics, experiment_name, test_log)
-		# Increment epoch counter at end of epoch
-		state_dict['epoch'] += 1
+						get_inception_metrics, test_log)
 
+		writer.add_scalars("Metric",{"IS_Mean": state_dict["best_IS"],\
+			"FID": metrics["best_FID"])
+
+		writer.flush()
+
+	writer.close()
+	end_time = datetime.now()
+	print("Training time: {}".format(end_time-start_time))
 
 def main():
-  # parse command line and run
-  parser = utils.prepare_parser()
-  config = vars(parser.parse_args())
-  print(config)
-  run(config)
+	# parse command line and run
+	parser = utils.prepare_parser()
+	config = vars(parser.parse_args())
+	print(config)
+	run(config)
 
 if __name__ == '__main__':
-  main()
+  	main()
