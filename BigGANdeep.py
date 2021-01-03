@@ -226,7 +226,7 @@ class Generator(nn.Module):
     self.lr, self.B1, self.B2, self.adam_eps = G_lr, G_B1, G_B2, adam_eps
     if G_mixed_precision:
       print('Using fp16 adam in G...')
-      import utils
+      from utils import utils
       self.optim = utils.Adam16(params=self.parameters(), lr=self.lr,
                            betas=(self.B1, self.B2), weight_decay=0,
                            eps=self.adam_eps)
@@ -444,7 +444,7 @@ class Discriminator(nn.Module):
     self.lr, self.B1, self.B2, self.adam_eps = D_lr, D_B1, D_B2, adam_eps
     if D_mixed_precision:
       print('Using fp16 adam in D...')
-      import utils
+      from utils import utils
       self.optim = utils.Adam16(params=self.parameters(), lr=self.lr,
                              betas=(self.B1, self.B2), weight_decay=0, eps=self.adam_eps)
     else:

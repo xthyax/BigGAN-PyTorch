@@ -6,7 +6,7 @@ import torch.nn as nn
 import torchvision
 import os
 
-import utils
+from utils import utils
 import losses
 
 
