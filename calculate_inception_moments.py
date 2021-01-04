@@ -33,7 +33,7 @@ def prepare_parser():
 		'--data_root', type=str, default='data',
 		help='Default location where data is stored (default: %(default)s)') 
 	parser.add_argument(
-		'--batch_size', type=int, default=32,
+		'--batch_size', type=int, default=4,
 		help='Default overall batchsize (default: %(default)s)')
 	parser.add_argument(
 		'--parallel', action='store_true', default=False,
@@ -90,6 +90,7 @@ def main():
 	parser = prepare_parser()
 	config = vars(parser.parse_args())
 	utils.set_GPU(1)
+	utils.seed_rng(1)
 	print(config)
 	run(config)
 
