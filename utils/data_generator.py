@@ -6,7 +6,8 @@ import glob
 import json
 import torch
 from torch.utils.data import Dataset
-from .utils import preprocess_input, load_and_crop, metadata_count
+from utils import utils
+# from utils.utils import preprocess_input, load_and_crop, metadata_count
 import random
 
 class DataGenerator(Dataset):
@@ -31,7 +32,7 @@ class DataGenerator(Dataset):
         self.crop = crop
         self.input_size = input_size
         self.img_path_labels = self.load_data()
-        self.metadata = metadata_count(self.input_dir, self.classes, self.gt_list, show_table=True)
+        self.metadata = utils.metadata_count(self.input_dir, self.classes, self.gt_list, show_table=True)
         self.augmentation= augmentation
     #     self.seeds = None
     #     self.set_up_new_seeds()
@@ -94,8 +95,8 @@ class DataGenerator(Dataset):
         except:
             single_label= self.num_of_classes
 
-        img, _ = load_and_crop(img_path, self.input_size, crop_opt=self.crop)
-        img = preprocess_input(img)
+        img, _ = utils.load_and_crop(img_path, self.input_size, crop_opt=self.crop)
+        img = utils.preprocess_input(img)
 
         return (img, single_label)
         # sample = {'img': img, 'label': single_label}

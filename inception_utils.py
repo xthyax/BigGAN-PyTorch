@@ -38,7 +38,7 @@ class WrapInception(nn.Module):
 		x = (x - self.mean) / self.std
 		# Upsample if necessary
 		if x.shape[2] != 299 or x.shape[3] != 299:
-		x = F.interpolate(x, size=(299, 299), mode='bilinear', align_corners=True)
+			x = F.interpolate(x, size=(299, 299), mode='bilinear', align_corners=True)
 		# 299 x 299 x 3
 		x = self.net.Conv2d_1a_3x3(x)
 		# 149 x 149 x 32
@@ -124,7 +124,7 @@ def torch_cov(m, rowvar=False):
 def sqrt_newton_schulz(A, numIters, dtype=None):
 	with torch.no_grad():
 		if dtype is None:
-		dtype = A.type()
+			dtype = A.type()
 		batchSize = A.shape[0]
 		dim = A.shape[1]
 		normA = A.mul(A).sum(dim=1).sum(dim=1).sqrt()
@@ -132,10 +132,10 @@ def sqrt_newton_schulz(A, numIters, dtype=None):
 		I = torch.eye(dim,dim).view(1, dim, dim).repeat(batchSize,1,1).type(dtype)
 		Z = torch.eye(dim,dim).view(1, dim, dim).repeat(batchSize,1,1).type(dtype)
 		for i in range(numIters):
-		T = 0.5*(3.0*I - Z.bmm(Y))
-		Y = Y.bmm(T)
-		Z = T.bmm(Z)
-		sA = Y*torch.sqrt(normA).view(batchSize, 1, 1).expand_as(A)
+			T = 0.5*(3.0*I - Z.bmm(Y))
+			Y = Y.bmm(T)
+			Z = T.bmm(Z)
+			sA = Y*torch.sqrt(normA).view(batchSize, 1, 1).expand_as(A)
 	return sA
 
 
@@ -187,8 +187,8 @@ def numpy_calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
 	if np.iscomplexobj(covmean):
 		print('wat')
 		if not np.allclose(np.diagonal(covmean).imag, 0, atol=1e-3):
-		m = np.max(np.abs(covmean.imag))
-		raise ValueError('Imaginary component {}'.format(m))
+			m = np.max(np.abs(covmean.imag))
+			raise ValueError('Imaginary component {}'.format(m))
 		covmean = covmean.real  
 
 	tr_covmean = np.trace(covmean) 
@@ -249,11 +249,11 @@ def accumulate_inception_activations(sample, net, num_inception_images=50000):
 	pool, logits, labels = [], [], []
 	while (torch.cat(logits, 0).shape[0] if len(logits) else 0) < num_inception_images:
 		with torch.no_grad():
-		images, labels_val = sample()
-		pool_val, logits_val = net(images.float())
-		pool += [pool_val]
-		logits += [F.softmax(logits_val, 1)]
-		labels += [labels_val]
+			images, labels_val = sample()
+			pool_val, logits_val = net(images.float())
+			pool += [pool_val]
+			logits += [F.softmax(logits_val, 1)]
+			labels += [labels_val]
 	return torch.cat(pool, 0), torch.cat(logits, 0), torch.cat(labels, 0)
 
 
@@ -283,27 +283,27 @@ def prepare_inception_metrics(dataset, parallel, no_fid=False):
 	def get_inception_metrics(sample, num_inception_images, num_splits=10, 
 								prints=True, use_torch=True):
 		if prints:
-		print('Gathering activations...')
+			print('Gathering activations...')
 		pool, logits, labels = accumulate_inception_activations(sample, net, num_inception_images)
 		if prints:  
-		print('Calculating Inception Score...')
+			print('Calculating Inception Score...')
 		IS_mean, IS_std = calculate_inception_score(logits.cpu().numpy(), num_splits)
 		if no_fid:
-		FID = 9999.0
+			FID = 9999.0
 		else:
-		if prints:
-			print('Calculating means and covariances...')
-		if use_torch:
-			mu, sigma = torch.mean(pool, 0), torch_cov(pool, rowvar=False)
-		else:
-			mu, sigma = np.mean(pool.cpu().numpy(), axis=0), np.cov(pool.cpu().numpy(), rowvar=False)
-		if prints:
-			print('Covariances calculated, getting FID...')
-		if use_torch:
-			FID = torch_calculate_frechet_distance(mu, sigma, torch.tensor(data_mu).float().cuda(), torch.tensor(data_sigma).float().cuda())
-			FID = float(FID.cpu().numpy())
-		else:
-			FID = numpy_calculate_frechet_distance(mu.cpu().numpy(), sigma.cpu().numpy(), data_mu, data_sigma)
+			if prints:
+				print('Calculating means and covariances...')
+			if use_torch:
+				mu, sigma = torch.mean(pool, 0), torch_cov(pool, rowvar=False)
+			else:
+				mu, sigma = np.mean(pool.cpu().numpy(), axis=0), np.cov(pool.cpu().numpy(), rowvar=False)
+			if prints:
+				print('Covariances calculated, getting FID...')
+			if use_torch:
+				FID = torch_calculate_frechet_distance(mu, sigma, torch.tensor(data_mu).float().cuda(), torch.tensor(data_sigma).float().cuda())
+				FID = float(FID.cpu().numpy())
+			else:
+				FID = numpy_calculate_frechet_distance(mu.cpu().numpy(), sigma.cpu().numpy(), data_mu, data_sigma)
 		# Delete mu, sigma, pool, logits, and labels, just in case
 		del mu, sigma, pool, logits, labels
 		return IS_mean, IS_std, FID

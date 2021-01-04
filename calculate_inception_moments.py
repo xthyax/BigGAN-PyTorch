@@ -6,6 +6,9 @@
  Note that if you don't shuffle the data, the IS of true data will be under-
  estimated as it is label-ordered. By default, the data is not shuffled
  so as to reduce non-determinism. '''
+import os
+import sys
+sys.path.append("..")
 import numpy as np
 import torch
 import torch.nn as nn
@@ -15,6 +18,9 @@ from utils import utils
 import inception_utils
 from tqdm import tqdm, trange
 from argparse import ArgumentParser
+
+ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(ROOT_DIR)
 
 def prepare_parser():
 	usage = 'Calculate and store inception metrics.'
@@ -36,13 +42,13 @@ def prepare_parser():
 		'--augment', action='store_true', default=False,
 		help='Augment with random crops and flips (default: %(default)s)')
 	parser.add_argument(
-		'--num_workers', type=int, default=2,
+		'--num_workers', type=int, default=0,
 		help='Number of dataloader workers (default: %(default)s)')
 	parser.add_argument(
 		'--shuffle', action='store_true', default=False,
 		help='Shuffle the data? (default: %(default)s)') 
 	parser.add_argument(
-		'--seed', type=int, default=0,
+		'--seed', type=int, default=1,
 		help='Random seed to use.')
 	return parser
 
@@ -89,4 +95,4 @@ def main():
 
 
 if __name__ == '__main__':    
-		main()
+	main()
