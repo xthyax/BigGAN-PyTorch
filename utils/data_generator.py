@@ -97,7 +97,7 @@ class DataGenerator(Dataset):
 
         img, _ = utils.load_and_crop(img_path, self.input_size, crop_opt=self.crop)
         img = utils.preprocess_input(img)
-        print(image_name)
+        # print(image_name)
         return (img, single_label)
         # sample = {'img': img, 'label': single_label}
         # sample = preprocess_input(sample)
