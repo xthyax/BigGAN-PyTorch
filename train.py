@@ -34,6 +34,9 @@ from sync_batchnorm import patch_replication_callback
 from tensorboardX import SummaryWriter
 from datetime import datetime
 
+ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(ROOT_DIR)
+
 # The main training file. Config is a dictionary specifying the configuration
 # of this training run.
 def run(config):
