@@ -1330,6 +1330,17 @@ def load_and_crop(image_path, input_size=0, custom_size=None, crop_opt=True):
         left, right = center_x - new_w / 2, center_x + new_w / 2
         top, bottom = center_y - new_h / 2, center_y + new_h / 2
 
+		if int(top) + int(bottom) != input_size:
+			if center_y < new_h / 2:
+				bottom = input_size
+			else:
+				top = size_image[0] - input_size
+		if int(left) + int(top) != input_size:
+			if center_x < new_w / 2:
+				right = input_size
+			else:
+				left = size_image[1] - input_size
+
         left, top = round(max(0, left)), round(max(0, top))
         right, bottom = round(min(size_image[1] - 0, right)), round(min(size_image[0] - 0, bottom))
 
