@@ -47,7 +47,6 @@ def run(config):
 	# and size of the images from the dataset, passing in a pytorch object
 	# for the activation specified as a string)
 	
-	writer = SummaryWriter(log_dir=config["logs_root"])
 	config['resolution'] = utils.imsize_dict[config['dataset']]
 	config['n_classes'] = utils.nclass_dict[config['dataset']]
 	config['G_activation'] = utils.activation_dict[config['G_nl']]
@@ -64,6 +63,7 @@ def run(config):
 
 	# Prepare root folders if necessary
 	utils.prepare_root(config)
+	writer = SummaryWriter(log_dir=config["logs_root"])
 
 	# Setup cudnn.benchmark for free speed
 	# torch.backends.cudnn.benchmark = True
@@ -110,7 +110,7 @@ def run(config):
 	if config['resume']:
 		print('Loading weights...')
 		utils.load_weights(G, D, state_dict,
-						config['weights_root'],
+						config['weights_root'],None,
 						G_ema if config['ema'] else None)
 
 	# If parallel, parallelize the GD module
@@ -212,9 +212,6 @@ def run(config):
 			# Save weights and copies as configured at specified interval
 			# if not (state_dict['itr'] % config['save_every']):
 			
-
-			# Increment epoch counter at end of epoch
-			state_dict['epoch'] += 1
 			# Set description update for progress bar
 			pbar.set_description(\
 				'Epoch: {}/{}. {}: {:.5}. {}: {:.5}. {}: {:.5}'.format(\
@@ -245,10 +242,13 @@ def run(config):
 			G.eval()
 			train_fns.test(G, D, G_ema, z_, y_, state_dict, config, sample,
 						get_inception_metrics, test_log)
-
+		print("Evaluate IS and FID....")
+		print(f"IS: {state_dict["best_IS"]} - FID: {metrics["best_FID"]}")
 		writer.add_scalars("Metric",{"IS_Mean": state_dict["best_IS"],\
 			"FID": metrics["best_FID"])
 
+		# Increment epoch counter at end of epoch
+		state_dict['epoch'] += 1
 		writer.flush()
 
 	writer.close()

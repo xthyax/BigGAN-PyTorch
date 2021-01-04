@@ -43,7 +43,7 @@ def prepare_parser():
             'Append "_hdf5" to use the hdf5 version for ISLVRC '
             '(default: %(default)s)')
     parser.add_argument(
-        '--h5_path',type=str,
+        '--h5_path',type=str, default="None"
         help='The path to save some stupid h5 file (default: %(default)s)')
     parser.add_argument(
         '--augment', action='store_true', default=False, required= False,
@@ -53,10 +53,10 @@ def prepare_parser():
         help='Number of dataloader workers; consider using less for HDF5 '
             '(default: %(default)s)')
     parser.add_argument(
-        '--no_pin_memory', action='store_false', dest='pin_memory', default=False, required=False,
+        '--no_pin_memory', action='store_false', dest='pin_memory', default=False,
         help='Pin data into memory through dataloader? (default: %(default)s)') 
     parser.add_argument(
-        '--shuffle', action='store_true', default=True, required=False , 
+        '--shuffle', action='store_true', default=True,
         help='Shuffle the data (strongly recommended)? (default: %(default)s)')
     parser.add_argument(
         '--load_in_mem', action='store_true', default=False,
@@ -439,7 +439,7 @@ classes_per_sheet_dict = {'I32': 50, 'I32_hdf5': 50,
                           'I64': 50, 'I64_hdf5': 50,
                           'I128': 20, 'I128_hdf5': 20,
                           'I256': 20, 'I256_hdf5': 20,
-                          'C10': 10, 'C100': 100, "GAN_Test":50}
+                          'C10': 10, 'C100': 100, "GAN_Test":25}
 activation_dict = {'inplace_relu': nn.ReLU(inplace=True),
                    'relu': nn.ReLU(inplace=False),
                    'ir': nn.ReLU(inplace=True),}
@@ -609,8 +609,8 @@ def seed_rng(seed=1):
     np.random.seed(seed)
     random.seed(seed)
     torch.manual_seed(seed)
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.deterministic = False
 
 
 # Utility to peg all roots to a base root
@@ -732,30 +732,30 @@ def save_weights(G, D, state_dict, weights_root,
 
 
 # Load a model's weights, optimizer, and the state_dict
-def load_weights(G, D, state_dict, weights_root, G_ema=None, strict=True, load_optim=True):
+def load_weights(G, D, state_dict, weights_root, name_suffix=None, G_ema=None, strict=True, load_optim=True):
     root = weights_root
 
     print('Loading weights from %s...' % root)
     if G is not None:
         G.load_state_dict(
-        torch.load('%s/%s.pth' % (root, 'G')),
+        torch.load('%s/%s.pth' % (root, join_strings('_', ['G', name_suffix]))),
         strict=strict)
         if load_optim:
             G.optim.load_state_dict(
-                torch.load('%s/%s.pth' % (root,'G_optim')))
+                torch.load('%s/%s.pth' % (root,join_strings('_', ['G', name_suffix]))))
     if D is not None:
         D.load_state_dict(
-        torch.load('%s/%s.pth' % (root, 'D')),
+        torch.load('%s/%s.pth' % (root, join_strings('_', ['G', name_suffix]))),
         strict=strict)
         if load_optim:
             D.optim.load_state_dict(
-                torch.load('%s/%s.pth' % (root, 'D_optim')))
+                torch.load('%s/%s.pth' % (root, join_strings('_', ['G', name_suffix]))))
     # Load state dict
     for item in state_dict:
-        state_dict[item] = torch.load('%s/%s.pth' % (root, 'state_dict'))[item]
+        state_dict[item] = torch.load('%s/%s.pth' % (root, join_strings('_', ['G', name_suffix])))[item]
     if G_ema is not None:
         G_ema.load_state_dict(
-        torch.load('%s/%s.pth' % (root, 'G_ema')),
+        torch.load('%s/%s.pth' % (root, join_strings('_', ['G', name_suffix]))),
         strict=strict)
 
 
