@@ -175,20 +175,20 @@ def prepare_parser():
         '--gpu', type=int, default=2,
         help='Default number of gpus (default: %(default)s)')
     parser.add_argument(
-        '--batch_size', type=int, default=8, required=False,
+        '--batch_size', type=int, default=4, required=False,
         help='Default overall batchsize (default: %(default)s)')
     parser.add_argument(
         '--G_batch_size', type=int, default=0,
         help='Batch size to use for G; if 0, same as D (default: %(default)s)')
     parser.add_argument(
-        '--num_G_accumulations', type=int, default=8,
+        '--num_G_accumulations', type=int, default=16,
         help='Number of passes to accumulate G''s gradients over '
             '(default: %(default)s)')  
     parser.add_argument(
         '--num_D_steps', type=int, default=2,
         help='Number of D steps per G step (default: %(default)s)')
     parser.add_argument(
-        '--num_D_accumulations', type=int, default=8,
+        '--num_D_accumulations', type=int, default=16,
         help='Number of passes to accumulate D''s gradients over '
             '(default: %(default)s)')
     parser.add_argument(
@@ -247,7 +247,7 @@ def prepare_parser():
         '--test_every', type=int, default=5000,
         help='Test every X iterations (default: %(default)s)')
     parser.add_argument(
-        '--num_inception_images', type=int, default=5000,
+        '--num_inception_images', type=int, default=50000,
         help='Number of samples to compute inception metrics with '
             '(default: %(default)s)')
     parser.add_argument(
@@ -1259,8 +1259,13 @@ def preprocess_input(image, advprop=False):
     if advprop:
         normalize = transforms.Lambda(lambda img: img * 2.0 - 1.0)
     else:
-        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],\
-                                        std=[0.229, 0.224, 0.225])
+        # For normal classification
+        # normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],\
+        #                                 std=[0.229, 0.224, 0.225])
+
+        # For GAN
+        normalize = transforms.Normalize(mean=[0.5,0.5,0.5],\
+                                        std=[0.5,0.5,0.5])
     preprocess_image = transforms.Compose([transforms.ToTensor(), normalize])(image)
     return preprocess_image
 

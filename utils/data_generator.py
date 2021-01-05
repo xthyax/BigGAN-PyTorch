@@ -11,7 +11,7 @@ from utils import utils
 import random
 
 class DataGenerator(Dataset):
-    def __init__(self, input_dir, input_size, classes=["Reject", "Pass"],crop=True, augmentation=None):
+    def __init__(self, input_dir, input_size, classes=["Reject", "Pass"],crop=True, augmentation=["hor","ver","hor_ver"]):
         """
             Args:
                 input_dir (list): list of input image
