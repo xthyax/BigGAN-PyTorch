@@ -42,9 +42,9 @@ def prepare_parser():
         help='Which Dataset to train on, out of I128, I256, C10, C100;'
             'Append "_hdf5" to use the hdf5 version for ISLVRC '
             '(default: %(default)s)')
-    parser.add_argument(
-        '--h5_path',type=str, default="None"
-        help='The path to save some stupid h5 file (default: %(default)s)')
+    # parser.add_argument(
+    #     '--h5_path',type=str, default="None"
+    #     help='The path to save some stupid h5 file (default: %(default)s)')
     parser.add_argument(
         '--augment', action='store_true', default=False, required= False,
         help='Augment with random crops and flips (default: %(default)s)')
@@ -97,11 +97,11 @@ def prepare_parser():
         '--G_shared', action='store_true', default=False,
         help='Use shared embeddings in G? (default: %(default)s)')
     parser.add_argument(
-        '--shared_dim', type=int, default=0,
+        '--shared_dim', type=int, default=128,
         help='G''s shared embedding dimensionality; if 0, will be equal to dim_z. '
             '(default: %(default)s)')
     parser.add_argument(
-        '--dim_z', type=int, default=128,
+        '--dim_z', type=int, default=120,
         help='Noise dimensionality: %(default)s)')
     parser.add_argument(
         '--z_var', type=float, default=1.0,
@@ -116,10 +116,10 @@ def prepare_parser():
         '--mybn', action='store_true', default=False,
         help='Use my batchnorm (which supports standing stats?) %(default)s)')
     parser.add_argument(
-        '--G_nl', type=str, default='relu',
+        '--G_nl', type=str, default='inplace_relu',
         help='Activation function for G (default: %(default)s)')
     parser.add_argument(
-        '--D_nl', type=str, default='relu',
+        '--D_nl', type=str, default='inplace_relu',
         help='Activation function for D (default: %(default)s)')
     parser.add_argument(
         '--G_attn', type=str, default='64',
@@ -175,7 +175,7 @@ def prepare_parser():
         '--gpu', type=int, default=2,
         help='Default number of gpus (default: %(default)s)')
     parser.add_argument(
-        '--batch_size', type=int, default=32, required=False,
+        '--batch_size', type=int, default=8, required=False,
         help='Default overall batchsize (default: %(default)s)')
     parser.add_argument(
         '--G_batch_size', type=int, default=0,
@@ -423,7 +423,7 @@ imsize_dict = {'I32': 32, 'I32_hdf5': 32,
                'I64': 64, 'I64_hdf5': 64,
                'I128': 128, 'I128_hdf5': 128,
                'I256': 256, 'I256_hdf5': 256,
-               'C10': 32, 'C100': 32, "GAN_Test":256}
+               'C10': 32, 'C100': 32, "GAN_Test":128}
 root_dict = {'I32': 'ImageNet', 'I32_hdf5': 'ILSVRC32.hdf5',
              'I64': 'ImageNet', 'I64_hdf5': 'ILSVRC64.hdf5',
              'I128': 'ImageNet', 'I128_hdf5': 'ILSVRC128.hdf5',
@@ -534,7 +534,7 @@ class MultiEpochSampler(torch.utils.data.Sampler):
 # Convenience function to centralize all data loaders
 def get_data_loaders(dataset, data_root=None, augment=False, batch_size=64, 
                     num_workers=8, shuffle=True, load_in_mem=False, hdf5=False,
-                    pin_memory=True, drop_last=False, start_itr=0,
+                    pin_memory=True, drop_last=True, start_itr=0,
                     num_epochs=500, use_multiepoch_sampler=False,
                     **kwargs):
 
@@ -628,7 +628,8 @@ def prepare_root(config):
     for key in ['weights_root', 'logs_root', 'samples_root']:
         if not os.path.exists(config[key]):
             print('Making directory %s for %s...' % (config[key], key))
-            os.mkdir(config[key])
+            os.makedirs(config[key], exist_ok=True)
+            # os.mkdir(config[key])
 
 
 # Simple wrapper that applies EMA to a model. COuld be better done in 1.0 using
@@ -732,31 +733,34 @@ def save_weights(G, D, state_dict, weights_root,
 
 
 # Load a model's weights, optimizer, and the state_dict
-def load_weights(G, D, state_dict, weights_root, name_suffix=None, G_ema=None, strict=True, load_optim=True):
+def load_weights(G, D, state_dict, weights_root, name_suffix=None, G_ema=None, strict=False, skip_load_optim=True,load_optim=True):
     root = weights_root
 
-    print('Loading weights from %s...' % root)
+    if name_suffix:
+        print('Loading %s weights from %s...' % (name_suffix, root))
+    else:
+        print('Loading weights from %s...' % root)
     if G is not None:
-        G.load_state_dict(
-        torch.load('%s/%s.pth' % (root, join_strings('_', ['G', name_suffix]))),
-        strict=strict)
-        if load_optim:
+        pretrained_model = torch.load('%s/%s.pth' % (root, join_strings('_', ['G', name_suffix])))
+        pretrained_model = {k: v for k, v in pretrained_model.items() if (k in G.state_dict()) and (G.state_dict()[k].shape == pretrained_model[k].shape)}
+        G.load_state_dict(pretrained_model, strict=strict)
+        if not skip_load_optim:
             G.optim.load_state_dict(
-                torch.load('%s/%s.pth' % (root,join_strings('_', ['G', name_suffix]))))
+                torch.load('%s/%s.pth' % (root, join_strings('_', ['G_optim', name_suffix]))))
     if D is not None:
-        D.load_state_dict(
-        torch.load('%s/%s.pth' % (root, join_strings('_', ['G', name_suffix]))),
-        strict=strict)
-        if load_optim:
+        pretrained_model = torch.load('%s/%s.pth' % (root, join_strings('_', ['D', name_suffix])))
+        pretrained_model = {k: v for k, v in pretrained_model.items() if (k in D.state_dict()) and (D.state_dict()[k].shape == pretrained_model[k].shape)}
+        D.load_state_dict(pretrained_model, strict=strict)
+        if not skip_load_optim:
             D.optim.load_state_dict(
-                torch.load('%s/%s.pth' % (root, join_strings('_', ['G', name_suffix]))))
-    # Load state dict
+                torch.load('%s/%s.pth' % (root, join_strings('_', ['D_optim', name_suffix]))))
+    # Load state dict  
     for item in state_dict:
-        state_dict[item] = torch.load('%s/%s.pth' % (root, join_strings('_', ['G', name_suffix])))[item]
+        state_dict[item] = torch.load('%s/%s.pth' % (root, join_strings('_', ['state_dict', name_suffix])))[item]
     if G_ema is not None:
-        G_ema.load_state_dict(
-        torch.load('%s/%s.pth' % (root, join_strings('_', ['G', name_suffix]))),
-        strict=strict)
+        pretrained_model = torch.load('%s/%s.pth' % (root, join_strings('_', ['G_ema', name_suffix])))
+        pretrained_model = {k: v for k, v in pretrained_model.items() if (k in G_ema.state_dict()) and (G_ema.state_dict()[k].shape == pretrained_model[k].shape)}
+        G_ema.load_state_dict(pretrained_model, strict=strict)
 
 
 ''' MetricsLogger originally stolen from VoxNet source code.

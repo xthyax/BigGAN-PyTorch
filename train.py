@@ -34,6 +34,7 @@ from sync_batchnorm import patch_replication_callback
 from tensorboardX import SummaryWriter
 from datetime import datetime
 
+import sys
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(ROOT_DIR)
 
@@ -92,14 +93,14 @@ def run(config):
 		print('Casting G to float16...')
 		G = G.half()
 		if config['ema']:
-		G_ema = G_ema.half()
+			G_ema = G_ema.half()
 	if config['D_fp16']:
 		print('Casting D to fp16...')
 		D = D.half()
 		# Consider automatically reducing SN_eps?
 	GD = model.G_D(G, D)
-	print(G)
-	print(D)
+	# print(G)
+	# print(D)
 	print('Number of params in G: {} D: {}'.format(
 		*[sum([p.data.nelement() for p in net.parameters()]) for net in [G,D]]))
 	# Prepare state dict, which holds things like epoch # and itr #
@@ -180,6 +181,15 @@ def run(config):
 		else:
 			pbar = tqdm(loaders[0])
 		# Seed RNG
+		current_stat = {
+			"total_G_loss": 0,
+			"total_D_loss_real": 0,
+			"total_D_loss_fake": 0,
+			"total_number": 0,
+			"mean_G_loss": 0,
+			"mean_D_loss_real": 0,
+			"mean_D_loss_fake": 0,
+		}
 
 		utils.seed_rng(epoch)
 		for i, (x, y) in enumerate(pbar):
@@ -213,27 +223,36 @@ def run(config):
 			# if not (state_dict['itr'] % config['save_every']):
 			
 			# Set description update for progress bar
+			current_stat["total_number"] += 1
+			current_stat["total_G_loss"] += metrics["G_loss"]
+			current_stat["total_D_loss_real"] += metrics["D_loss_real"]
+			current_stat["total_D_loss_fake"] += metrics["D_loss_fake"]
+			current_stat["mean_G_loss"] = current_stat["total_G_loss"] / current_stat["total_number"]
+			current_stat["mean_D_loss_real"] = current_stat["total_D_loss_real"] / current_stat["total_number"]
+			current_stat["mean_D_loss_fake"] = current_stat["total_D_loss_fake"] / current_stat["total_number"]
+
+
 			pbar.set_description(\
 				'Epoch: {}/{}. {}: {:.5}. {}: {:.5}. {}: {:.5}'.format(\
 				state_dict['epoch'], config['num_epochs'], \
-				"G_loss", metrics["G_loss"], \
-				"D_loss_real", metrics["D_loss_real"],\
-				"D_loss_fake" ,	metrics["D_loss_fake"]))
+				"G_loss", current_stat["mean_G_loss"], \
+				"D_loss_real", current_stat["mean_D_loss_real"],\
+				"D_loss_fake" ,	current_stat["mean_D_loss_fake"]))
 
-			progress_bar.update()
+			pbar.update()
 
-		writer.add_scalars("Loss",{"G_loss": metrics["G_loss"],\
-			"D_loss_real": metrics["D_loss_real"],\
-			"D_loss_fake": metrics["D_loss_fake"]}, state_dict['epoch'])
+		writer.add_scalars("Loss",{"G_loss": current_stat["mean_G_loss"],\
+			"D_loss_real": current_stat["mean_D_loss_real"],\
+			"D_loss_fake": current_stat["mean_D_loss_fake"]}, state_dict['epoch'])
 
-			# Save after every epoch
-			# if config['G_eval_mode']:
-			# 	print('Switchin G to eval mode...')
-			# 	G.eval()
-			# 	if config['ema']:
-			# 		G_ema.eval()
-			# 	train_fns.save_and_sample(G, D, G_ema, z_, y_, fixed_z, fixed_y, 
-			# 							state_dict, config, experiment_name)
+		# Save after every epoch
+		if config['G_eval_mode']:
+			print('Switchin G to eval mode...')
+			G.eval()
+			if config['ema']:
+				G_ema.eval()
+			train_fns.save_and_sample(G, D, G_ema, z_, y_, fixed_z, fixed_y, 
+									state_dict, config, experiment_name)
 		
 		# Test every specified interval
 		# if not (state_dict['itr'] % config['test_every']):
@@ -243,9 +262,9 @@ def run(config):
 			train_fns.test(G, D, G_ema, z_, y_, state_dict, config, sample,
 						get_inception_metrics, test_log)
 		print("Evaluate IS and FID....")
-		print(f"IS: {state_dict["best_IS"]} - FID: {metrics["best_FID"]}")
+		print(f"IS: {state_dict['best_IS']} - FID: {state_dict['best_FID']}")
 		writer.add_scalars("Metric",{"IS_Mean": state_dict["best_IS"],\
-			"FID": metrics["best_FID"])
+			"FID": state_dict["best_FID"]})
 
 		# Increment epoch counter at end of epoch
 		state_dict['epoch'] += 1
