@@ -8,9 +8,9 @@
 """
 
 import os
-os.environ["MKL_NUM_THREADS"] = "3" # "6"
-os.environ["OMP_NUM_THREADS"] = "2" # "4"
-os.environ["NUMEXPR_NUM_THREADS"] = "3" # "6"
+os.environ["MKL_NUM_THREADS"] = "6" # "6"
+os.environ["OMP_NUM_THREADS"] = "4" # "4"
+os.environ["NUMEXPR_NUM_THREADS"] = "6" # "6"
 import functools
 import math
 import numpy as np
@@ -113,7 +113,9 @@ def run(config):
 		utils.load_weights(G, D, state_dict,
 						config['weights_root'],None,
 						G_ema if config['ema'] else None)
-
+	# Refresh state dict - cause we will ignore the information inside state dict when pretrained
+	state_dict = {'itr': 0, 'epoch': 0, 'save_num': 0, 'save_best_num': 0,
+				'best_IS': 0, 'best_FID': 999999, 'config': config}
 	# If parallel, parallelize the GD module
 	if config['parallel']:
 		GD = nn.DataParallel(GD)
@@ -233,38 +235,39 @@ def run(config):
 
 
 			pbar.set_description(\
-				'Epoch: {}/{}. {}: {:.5}. {}: {:.5}. {}: {:.5}'.format(\
-				state_dict['epoch'], config['num_epochs'], \
+				'Iter: {}. {}: {:.5}. {}: {:.5}. {}: {:.5}'.format(\
+				state_dict['itr'], \
 				"G_loss", current_stat["mean_G_loss"], \
 				"D_loss_real", current_stat["mean_D_loss_real"],\
 				"D_loss_fake" ,	current_stat["mean_D_loss_fake"]))
 
 			pbar.update()
 
-		writer.add_scalars("Loss",{"G_loss": current_stat["mean_G_loss"],\
-			"D_loss_real": current_stat["mean_D_loss_real"],\
-			"D_loss_fake": current_stat["mean_D_loss_fake"]}, state_dict['epoch'])
+			writer.add_scalars("Loss",{"G_loss": current_stat["mean_G_loss"],\
+				"D_loss_real": current_stat["mean_D_loss_real"],\
+				"D_loss_fake": current_stat["mean_D_loss_fake"]}, state_dict['itr'])
 
-		# Save after every epoch
-		if config['G_eval_mode']:
-			print('Switchin G to eval mode...')
-			G.eval()
-			if config['ema']:
-				G_ema.eval()
-			train_fns.save_and_sample(G, D, G_ema, z_, y_, fixed_z, fixed_y, 
-									state_dict, config, experiment_name)
+			# Save weights and copies as configured at specified interval
+			if not (state_dict['itr'] % config['save_every']):
+				if config['G_eval_mode']:
+					print('Switchin G to eval mode...')
+					G.eval()
+					if config['ema']:
+						G_ema.eval()
+					train_fns.save_and_sample(G, D, G_ema, z_, y_, fixed_z, fixed_y, 
+											state_dict, config, experiment_name)
 		
-		# Test every specified interval
-		# if not (state_dict['itr'] % config['test_every']):
-		if config['G_eval_mode']:
-			print('Switchin G to eval mode...')
-			G.eval()
-			train_fns.test(G, D, G_ema, z_, y_, state_dict, config, sample,
-						get_inception_metrics, test_log)
-		print("Evaluate IS and FID....")
-		print(f"IS: {state_dict['best_IS']} - FID: {state_dict['best_FID']}")
-		writer.add_scalars("Metric",{"IS_Mean": state_dict["best_IS"],\
-			"FID": state_dict["best_FID"]})
+			# Test every specified interval
+			if not (state_dict['itr'] % config['test_every']):
+				if config['G_eval_mode']:
+					print('Switchin G to eval mode...')
+					G.eval()
+					state_dict = train_fns.test(G, D, G_ema, z_, y_, state_dict, config, sample,
+								get_inception_metrics, test_log)
+				print("Evaluate IS and FID....")
+				print(f"IS: {state_dict['best_IS']} - FID: {state_dict['best_FID']}")
+				writer.add_scalars("Metric",{"IS_Mean": state_dict["best_IS"],\
+					"FID": state_dict["best_FID"]}, state_dict['itr'])
 
 		# Increment epoch counter at end of epoch
 		state_dict['epoch'] += 1

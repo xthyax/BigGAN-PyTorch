@@ -175,7 +175,7 @@ def prepare_parser():
         '--gpu', type=int, default=2,
         help='Default number of gpus (default: %(default)s)')
     parser.add_argument(
-        '--batch_size', type=int, default=4, required=False,
+        '--batch_size', type=int, default=16, required=False,
         help='Default overall batchsize (default: %(default)s)')
     parser.add_argument(
         '--G_batch_size', type=int, default=0,
@@ -195,7 +195,7 @@ def prepare_parser():
         '--split_D', action='store_true', default=False,
         help='Run D twice rather than concatenating inputs? (default: %(default)s)')
     parser.add_argument(
-        '--num_epochs', type=int, default=500,
+        '--num_epochs', type=int, default=1000,
         help='Number of epochs to train for (default: %(default)s)')
     parser.add_argument(
         '--parallel', action='store_true', default=True,
@@ -228,7 +228,7 @@ def prepare_parser():
         help='Run G in eval mode (running/standing stats?) at sample/test time? '
             '(default: %(default)s)')
     parser.add_argument(
-        '--save_every', type=int, default=2000,
+        '--save_every', type=int, default=1000,
         help='Save every X iterations (default: %(default)s)')
     parser.add_argument(
         '--num_save_copies', type=int, default=2,
@@ -244,7 +244,7 @@ def prepare_parser():
         '--no_fid', action='store_true', default=False,
         help='Calculate IS only, not FID? (default: %(default)s)')
     parser.add_argument(
-        '--test_every', type=int, default=5000,
+        '--test_every', type=int, default=3000,
         help='Test every X iterations (default: %(default)s)')
     parser.add_argument(
         '--num_inception_images', type=int, default=50000,
@@ -1331,8 +1331,8 @@ def load_and_crop(image_path, input_size=0, custom_size=None, crop_opt=True):
         heightBox = 0
         class_gt = "Empty"
 
-    new_w = new_h = input_size
-
+    new_w = new_h = 256
+    _input_size = 256
     # new_w = max(widthBox, input_size)
     # new_h = max(heightBox, input_size)
     if crop_opt:
@@ -1342,19 +1342,20 @@ def load_and_crop(image_path, input_size=0, custom_size=None, crop_opt=True):
         left, top = round(max(0, left)), round(max(0, top))
         right, bottom = round(min(size_image[1] - 0, right)), round(min(size_image[0] - 0, bottom))
 
-        if int(bottom) - int(top) != input_size:
+        if int(bottom) - int(top) != _input_size:
             if center_y < new_h / 2:
-                bottom = input_size
+                bottom = _input_size
             else:
-                top = size_image[0] - input_size
-        if int(right)- int(left) != input_size:
+                top = size_image[0] - _input_size
+        if int(right)- int(left) != _input_size:
             if center_x < new_w / 2:
-                right = input_size
+                right = _input_size
             else:
-                left = size_image[1] - input_size
+                left = size_image[1] - _input_size
 
         cropped_image = image[int(top):int(bottom), int(left):int(right)]
 
+        cropped_image = cv2.resize(cropped_image,(input_size, input_size))
         # if input_size > new_w:
         #     changed_image = cv2.resize(cropped_image,(input_size, input_size))
         # else:

@@ -102,7 +102,7 @@ def GAN_training_function(G, D, GD, z_, y_, ema, state_dict, config):
 def save_and_sample(G, D, G_ema, z_, y_, fixed_z, fixed_y, 
                     state_dict, config, experiment_name):
 	utils.save_weights(G, D, state_dict, config['logs_root'],
-						str(state_dict["epoch"]), G_ema if config['ema'] else None)
+						None, G_ema if config['ema'] else None)
 	# Save an additional copy to mitigate accidental corruption if process
 	# is killed during a save (it's happened to me before -.-)
 	# if config['num_save_copies'] > 0:
@@ -172,6 +172,8 @@ def test(G, D, G_ema, z_, y_, state_dict, config, sample, get_inception_metrics,
 												num_splits=10)
 	print('Itr %d: PYTORCH UNOFFICIAL Inception Score is %3.3f +/- %3.3f, PYTORCH UNOFFICIAL FID is %5.4f' % (state_dict['itr'], IS_mean, IS_std, FID))
 	# If improved over previous best metric, save approrpiate copy
+	# print(f"Current IS: {state_dict['best_IS']}")
+	# print(f"New IS: {IS_mean}")
 	if ((config['which_best'] == 'IS' and IS_mean > state_dict['best_IS'])
 		or (config['which_best'] == 'FID' and FID < state_dict['best_FID'])):
 
@@ -185,3 +187,4 @@ def test(G, D, G_ema, z_, y_, state_dict, config, sample, get_inception_metrics,
 	# Log results to file
 	test_log.log(itr=int(state_dict['itr']), IS_mean=float(IS_mean),
 				IS_std=float(IS_std), FID=float(FID))
+	return state_dict
