@@ -79,10 +79,10 @@ def prepare_parser():
         help='Parameterization style to use for D, spectral norm (SN) or SVD (SVD)'
             ' or None (default: %(default)s)')    
     parser.add_argument(
-        '--G_ch', type=int, default=64,
+        '--G_ch', type=int, default=96,
         help='Channel multiplier for G (default: %(default)s)')
     parser.add_argument(
-        '--D_ch', type=int, default=64,
+        '--D_ch', type=int, default=96,
         help='Channel multiplier for D (default: %(default)s)')
     parser.add_argument(
         '--G_depth', type=int, default=1,
@@ -94,7 +94,7 @@ def prepare_parser():
         '--D_thin', action='store_false', dest='D_wide', default=True,
         help='Use the SN-GAN channel pattern for D? (default: %(default)s)')
     parser.add_argument(
-        '--G_shared', action='store_true', default=False,
+        '--G_shared', action='store_true', default=True,
         help='Use shared embeddings in G? (default: %(default)s)')
     parser.add_argument(
         '--shared_dim', type=int, default=128,
@@ -152,10 +152,10 @@ def prepare_parser():
     
     ### Optimizer stuff ###
     parser.add_argument(
-        '--G_lr', type=float, default=5e-5,
+        '--G_lr', type=float, default=1e-4,
         help='Learning rate to use for Generator (default: %(default)s)')
     parser.add_argument(
-        '--D_lr', type=float, default=2e-4,
+        '--D_lr', type=float, default=4e-4,
         help='Learning rate to use for Discriminator (default: %(default)s)')
     parser.add_argument(
         '--G_B1', type=float, default=0.0,
@@ -172,7 +172,7 @@ def prepare_parser():
         
     ### Batch size, parallel, and precision stuff ###
     parser.add_argument(
-        '--gpu', type=int, default=2,
+        '--gpu', type=int, default=4,
         help='Default number of gpus (default: %(default)s)')
     parser.add_argument(
         '--batch_size', type=int, default=16, required=False,
@@ -237,7 +237,7 @@ def prepare_parser():
         '--num_best_copies', type=int, default=2,
         help='How many previous best checkpoints to save (default: %(default)s)')
     parser.add_argument(
-        '--which_best', type=str, default='IS',
+        '--which_best', type=str, default='FID',
         help='Which metric to use to determine when to save new "best"'
             'checkpoints, one of IS or FID (default: %(default)s)')
     parser.add_argument(
